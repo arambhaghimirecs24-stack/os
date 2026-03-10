@@ -1,7 +1,7 @@
 #include <stdio.h>
 #define MAX 20
 
-// Priority Non Preemptive
+
 void priority_np(int n,int at[],int bt[],int pr[]){
 int wt[MAX]={0},tat[MAX],rt[MAX],done[MAX]={0};
 int time=0,count=0;
@@ -56,7 +56,6 @@ printf("\nAvg RT=%.2f\n",sr/n);
 
 
 
-// Priority Preemptive
 void priority_p(int n,int at[],int bt[],int pr[]){
 
 int rt_bt[MAX],wt[MAX]={0},tat[MAX],rt[MAX];
@@ -121,9 +120,6 @@ printf("\nAvg TAT=%.2f",st/n);
 printf("\nAvg RT=%.2f\n",sr/n);
 }
 
-
-
-// Round Robin
 void rr(int n,int bt[],int q){
 
 int wt[MAX]={0},tat[MAX],rt[MAX],rt_bt[MAX];
