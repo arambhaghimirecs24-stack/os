@@ -1,43 +1,61 @@
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
-
-#define B 5
-#define N 5
-
-int buffer[B], in=0, out=0;
-sem_t empty, full, mutex, forks[N];
-
-void *producer(void *a){
-    for(int i=0;i<10;i++){
-        sem_wait(&empty); sem_wait(&mutex);
-        buffer[in]=i;
+#define BUFFER_SIZE 5
+int buffer[BUFFER_SIZE];
+int in = 0, out = 0;
+sem_t empty, full;
+pthread_mutex_t mutex;
+void* producer(void* arg) {
+    for(int i = 0; i < 15; i++) {
+        sem_wait(&empty);
+        pthread_mutex_lock(&mutex);
+        buffer[in] = i;
         printf("Produced: %d at buffer[%d]\n", i, in);
-        in=(in+1)%B;
-        sem_post(&mutex); sem_post(&full);
+        in = (in + 1) % BUFFER_SIZE;
+        pthread_mutex_unlock(&mutex);
+        sem_post(&full);
         sleep(1);
-    } return NULL;
+    }
+    return NULL;
 }
-
-void *consumer(void *a){
-    for(int i=0;i<10;i++){
-        sem_wait(&full); sem_wait(&mutex);
-        printf("Consumed: %d from buffer[%d]\n", buffer[out], out);
-        out=(out+1)%B;
-        sem_post(&mutex); sem_post(&empty);
-        sleep(2);
-    } return NULL;
+void* consumer(void* arg) {
+    int item;
+    for(int i = 0; i < 15; i++) {
+        sem_wait(&full);
+        pthread_mutex_lock(&mutex);
+        item = buffer[out];
+        printf("Consumed: %d from buffer[%d]\n", item, out);
+        out = (out + 1) % BUFFER_SIZE;
+        pthread_mutex_unlock(&mutex);
+        sem_post(&empty);
+        sleep(1);
+    }
+    return NULL;
 }
-
-
-
-void *philosopher(void *a){
-    int id=*(int*)a, left=id, right=(id+1)%N;
-    for(int i=0;i<3;i++){
-        printf("Philosopher %d is thinking.\n", id); sleep(1);
-
-        if(id==N-1){
+void run_producer_consumer() {
+    pthread_t p, c;
+    sem_init(&empty, 0, BUFFER_SIZE);
+    sem_init(&full, 0, 0);
+    pthread_mutex_init(&mutex, NULL);
+    pthread_create(&p, NULL, producer, NULL);
+    pthread_create(&c, NULL, consumer, NULL);
+    pthread_join(p, NULL);
+    pthread_join(c, NULL);
+}
+#define N 5
+sem_t forks[N];
+void* philosopher(void* num) {
+    int id = *(int*)num;
+    int left = id;
+    int right = (id + 1) % N;
+    for(int i = 0; i < 3; i++) {
+        printf("Philosopher %d is thinking.\n", id);
+        sleep(1);
+        if (id == N - 1) {
             sem_wait(&forks[right]);
             printf("Philosopher %d picked up right fork %d.\n", id, right);
             sem_wait(&forks[left]);
@@ -48,32 +66,38 @@ void *philosopher(void *a){
             sem_wait(&forks[right]);
             printf("Philosopher %d picked up right fork %d.\n", id, right);
         }
-
-        printf("Philosopher %d is eating.\n", id); sleep(2);
-
-        sem_post(&forks[left]); sem_post(&forks[right]);
+        printf("Philosopher %d is eating.\n", id);
+        sleep(2);
+        sem_post(&forks[left]);
+        sem_post(&forks[right]);
         printf("Philosopher %d put down forks %d and %d.\n", id, left, right);
-    } return NULL;
+    }
+    return NULL;
 }
-
-
-int main(){
-    int ch; pthread_t p,c,ph[N]; int id[N];
-
-    printf("\n1. Producer-Consumer\n2. Dining Philosophers\nChoice: ");
-    scanf("%d",&ch);
-
-    if(ch==1){
-        sem_init(&empty,0,B); sem_init(&full,0,0); sem_init(&mutex,0,1);
-        pthread_create(&p,0,producer,0); pthread_create(&c,0,consumer,0);
-        pthread_join(p,0); pthread_join(c,0);
+void run_dining_philosophers() {
+    pthread_t ph[N];
+    int ids[N];
+    for(int i = 0; i < N; i++)
+        sem_init(&forks[i], 0, 1);
+    for(int i = 0; i < N; i++) {
+        ids[i] = i;
+        pthread_create(&ph[i], NULL, philosopher, &ids[i]);
     }
-    else if(ch==2){
-        for(int i=0;i<N;i++) sem_init(&forks[i],0,1);
-        for(int i=0;i<N;i++){ id[i]=i; pthread_create(&ph[i],0,philosopher,&id[i]); }
-        for(int i=0;i<N;i++) pthread_join(ph[i],0);
-    }
-    else printf("Invalid choice!\n");
-
+    for(int i = 0; i < N; i++)
+        pthread_join(ph[i], NULL);
+}
+int main() {
+    int choice;
+    printf("\n--- Synchronization Simulation ---\n");
+    printf("1. Producer-Consumer Problem\n");
+    printf("2. Dining Philosophers Problem\n");
+    printf("Enter your choice: ");
+    scanf("%d", &choice);
+    if(choice == 1)
+        run_producer_consumer();
+    else if(choice == 2)
+        run_dining_philosophers();
+    else
+        printf("Invalid choice\n");
     return 0;
 }
